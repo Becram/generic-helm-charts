@@ -1,0 +1,116 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "deployment.fullname" . }}
+  labels:
+{{ include "deployment.labels" . | indent 4 }}
+spec:
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "deployment.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 10%
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "deployment.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+      annotations:
+        checksum.helm.kubernetes.io/autoscaler: {{ include (print $.Chart.Name "/templates/autoscaling.yaml") . | sha256sum }}
+      {{- include "add-safe-evict" . | nindent 8 }}
+      {{- with .Values.annotations }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- if .Values.serviceAccount }}
+      serviceAccount: {{ .Values.serviceAccount.name }}
+      {{- else if .Values.existingServiceAccountName }}
+      serviceAccount: {{ .Values.existingServiceAccountName }}
+      {{- end }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds | default 35 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+      {{- range . }}
+      - labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: {{ include "deployment.name" $ }}
+            app.kubernetes.io/instance: {{ $.Release.Name }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- end }}
+      {{- with .Values.affinity }}
+        affinity:
+          {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+        tolerations:
+          {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      {{- range .Values.containers }}
+      - name: {{ .name }}
+        image: {{ .image }}
+        {{- with .args }}
+        args:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .command }}
+        command:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .volumeMounts }}
+        volumeMounts:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- if .containerPort }}
+        ports:
+          - name: {{ .name }}
+            containerPort: {{ .containerPort }}
+        {{- end }}
+        {{- with .livenessProbe }}
+        livenessProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .readinessProbe }}
+        readinessProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .env }}
+        env:
+          {{- range $key, $value := . }}
+          - name: {{ $key }}
+            value: {{ $value | quote }}
+          {{- end }}
+        {{- end }}
+        {{- with .envFrom }}
+        envFrom:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - sleep
+              - 4s
+      {{- end }}

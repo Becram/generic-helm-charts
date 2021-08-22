@@ -1,0 +1,6 @@
+apiVersion: v2
+name: generic-chart
+version: 1.0.0
+maintainers:
+  - name: Thanatchaya Kromsaeng
+    email: tkrom@sertiscorp.com

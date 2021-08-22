@@ -1,0 +1,163 @@
+nameOverride: ""
+
+fullnameOverride: ""
+
+imagePullSecrets: []
+  # - name: myregistrykey
+
+annotations: {}
+  # linkerd.io/inject: enabled
+
+serviceAccount: {}
+  # name:
+  # annotations:
+
+# # Override service account created by charts
+# existingServiceAccountName: ""
+
+# terminationGracePeriodSeconds: 60
+
+# Pod's containers including default and sidecars
+containers:
+  # Example application and esp containers
+  - name: application
+    containerPort: 8080
+    image:
+    command: []
+      # - "/app/bin/migrate"
+    args: []
+      # - "--version"
+    livenessProbe:
+      httpGet:
+        path: "/"
+        port: 8080
+      initialDelaySeconds: 15
+      periodSeconds: 5
+      timeoutSeconds: 3
+      successThreshold: 1
+      failureThreshold: 2
+    readinessProbe:
+      httpGet:
+        path: "/"
+        port: 8080
+      initialDelaySeconds: 15
+      periodSeconds: 5
+      timeoutSeconds: 3
+      successThreshold: 1
+      failureThreshold: 2
+    env: {}
+      # PORT: 80
+      # ENV: "dev"
+    envFrom: []
+      # - configMapRef:
+      #     name: special-config
+      # - secretRef:
+      #     name: special-secret
+      #
+    volumeMounts:
+      - name: dynaconf
+        mountPath: /root/configs/servings.yaml
+      #
+    resources: {}
+      # limits:
+      #   cpu: 100m
+      #   memory: 128Mi
+      # requests:
+      #   cpu: 100m
+      #   memory: 128Mi
+  - name: esp
+    image: esp:latest
+    args:
+      - "--http_port=8081"
+      - "--backend=localhost:8080"
+    containerPort: 8080
+    livenessProbe:
+      httpGet:
+        path: "/"
+        port: 8081
+    readinessProbe:
+      httpGet:
+        path: "/"
+        port: 8081
+    env:
+      ENV: "dev"
+config:
+  setting.yaml: |
+      test: dev
+  
+ingress:
+  enabled: false
+#   enabled: true
+#   exposedPort: 8081
+#   annotations:
+#     kubernetes.io/ingress.class: ingress-nginx
+#     nginx.ingress.kubernetes.io/proxy-read-timeout: "12h"
+#     nginx.ingress.kubernetes.io/ssl-redirect: "false"
+#   hosts:
+#     - host: host-name.com
+#       paths:
+#         - /foo
+#         - /bar
+#   tls:
+#     - secretName: secret-name
+#       hosts:
+#         - host-name.com
+
+# Pod's volumes
+volumes: 
+  - name: dynaconf
+    configMap:
+      name: test-generic-chart-config
+
+# Pod's nodeSelector
+nodeSelector: {}
+  # cloud.google.com/gke-nodepool: default
+
+# # Deployment autoscaling
+# hpa:
+#   minReplicas: 1
+#   maxReplicas: 2
+#   metrics:
+#     - type: pods
+#       metricName: http_request_per_second
+#       metricValue: 25000m
+
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: zone
+    whenUnsatisfiable: ScheduleAnyway
+  - maxSkew: 1
+    topologyKey: node
+    whenUnsatisfiable: ScheduleAnyway
+
+affinity: {}
+# # An example of preferred pod anti-affinity, weight is in the range 1-100
+    # podAntiAffinity:
+    #   preferredDuringSchedulingIgnoredDuringExecution:
+    #   - weight: 100
+    #     podAffinityTerm:
+    #       labelSelector:
+    #         matchExpressions:
+    #         - key: app
+    #           operator: In
+    #           values:
+    #           - nginx-ingress
+    #       topologyKey: kubernetes.io/hostname
+
+    # # An example of required pod anti-affinity
+    # podAntiAffinity:
+    #   requiredDuringSchedulingIgnoredDuringExecution:
+    #   - labelSelector:
+    #       matchExpressions:
+    #       - key: app
+    #         operator: In
+    #         values:
+    #         - nginx-ingress
+    #     topologyKey: "kubernetes.io/hostname"
+
+tolerations: []
+  #  - key: "key"
+  #    operator: "Equal|Exists"
+  #    value: "value"
+  #    effect: "NoSchedule|PreferNoSchedule|NoExecute(1.6 only)"
+
